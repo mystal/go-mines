@@ -8,7 +8,7 @@ Installation
 
 To Play
 -------
-    ${GOPATH}/bin/minesweeper
+    ${GOPATH}/bin/go-mines
 
 Controls
 --------
