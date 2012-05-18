@@ -1,8 +1,8 @@
 package main
 
 import (
-    //"mystal/minesweeper/clients/gtk"
-    "mystal/minesweeper/clients/termbox"
+    //"github.com/Mystal/go-mines/clients/gtk"
+    "github.com/Mystal/go-mines/clients/termbox"
 )
 
 func main() {
