@@ -15,9 +15,13 @@ type cell struct {
     sorroundingMines uint8
 }
 
-type MineGrid [][]cell
+type MineGrid struct {
+    cells [][]cell
+    x, y int
+    spacesLeft int
+}
 
-type GameState int
+type GameState uint
 
 type Error string
 
@@ -27,18 +31,14 @@ const (
     GameLost
 )
 
-var spacesLeft int
-
 func (e Error) Error() string {
     return string(e)
 }
 
-func MakeMineGrid(x, y, mines int) (MineGrid, error) {
+func MakeMineGrid(x, y, mines int) (*MineGrid, error) {
     if mines > x*y {
         return nil, Error(fmt.Sprintf("Too many mines for a %dx%d grid", x, y))
     }
-
-    spacesLeft = x*y - mines
 
     rand.Seed(time.Now().Unix())
 
@@ -51,46 +51,55 @@ func MakeMineGrid(x, y, mines int) (MineGrid, error) {
         mineSet[p] = true
     }
 
-    g := MineGrid(make([][]cell, y))
+    cells := make([][]cell, y)
     for j := 0; j < y; j++ {
-        g[j] = make([]cell, x)
+        cells[j] = make([]cell, x)
         for i := 0; i < x; i++ {
             p := image.Point{i, j}
-            g[j][i].point = p
+            cells[j][i].point = p
             if mineSet[p] {
-                g[j][i].mines = 1
+                cells[j][i].mines = 1
             }
         }
     }
+    g := MineGrid{cells, x, y, x*y - mines}
     //Count sorrounding mines and store
     for j := 0; j < y; j++ {
         for i := 0; i < x; i++ {
-            g[j][i].sorroundingMines, _ = g.countSorroundingMines(i, j)
+            g.cells[j][i].sorroundingMines, _ = g.countSorroundingMines(i, j)
         }
     }
 
-    return g, nil
+    return &g, nil
+}
+
+func (g MineGrid) X() int {
+    return g.x
+}
+
+func (g MineGrid) Y() int {
+    return g.y
 }
 
 func (g MineGrid) String() (str string) {
-    if len(g) == 0 {
+    if g.x == 0 || g.y == 0 {
         return
     }
 
     str += "/"
-    for i := 0; i < len(g[0]); i++ {
+    for i := 0; i < g.x; i++ {
         str += "\u00AF"
     }
     str += "\\\n"
-    for y := 0; y < len(g); y++ {
+    for j := 0; j < g.y; j++ {
         str += "|"
-        for x := 0; x < len(g[y]); x++ {
-            if !g[y][x].revealed {
+        for i := 0; i < g.y; i++ {
+            if !g.cells[j][i].revealed {
                 str += "-"
-            } else if g[y][x].mines != 0 {
+            } else if g.cells[j][i].mines != 0 {
                 str += "*"
-            } else if g[y][x].sorroundingMines != 0 {
-                str += fmt.Sprint(g[y][x].sorroundingMines)
+            } else if g.cells[j][i].sorroundingMines != 0 {
+                str += fmt.Sprint(g.cells[j][i].sorroundingMines)
             } else {
                 str += " "
             }
@@ -98,7 +107,7 @@ func (g MineGrid) String() (str string) {
         str += "|\n"
     }
     str += "\\"
-    for i := 0; i < len(g[0]); i++ {
+    for i := 0; i < g.x; i++ {
         str += "_"
     }
     str += "/\n"
@@ -109,13 +118,13 @@ func (g MineGrid) checkPoint(x, y int) error {
     if y < 0 {
         return Error("y is negative")
     }
-    if y >= len(g) {
+    if y >= g.y {
         return Error("y is too big")
     }
     if x < 0 {
         return Error("x is negative")
     }
-    if x >= len(g[0]) {
+    if x >= g.x {
         return Error("x is too big")
     }
     return nil
@@ -126,7 +135,7 @@ func (g MineGrid) HasMine(x, y int) (bool, error) {
         return false, err
     }
 
-    return g[y][x].mines != 0, nil
+    return g.cells[y][x].mines != 0, nil
 }
 
 func (g MineGrid) GetNeighbors(x, y int) ([]image.Point, error) {
@@ -153,28 +162,28 @@ func (g MineGrid) countSorroundingMines(x, y int) (uint8, error) {
     points, _ := g.GetNeighbors(x, y)
     count := uint8(0)
     for i := 0; i < len(points); i++ {
-        count += g[points[i].Y][points[i].X].mines
+        count += g.cells[points[i].Y][points[i].X].mines
     }
     return count, nil
 }
 
-func (g MineGrid) Reveal(x, y int) (GameState, error) {
+func (g *MineGrid) Reveal(x, y int) (GameState, error) {
     if err := g.checkPoint(x, y); err != nil {
         return GameContinue, err
     }
 
-    if g[y][x].revealed || g[y][x].flags != 0 {
+    if g.cells[y][x].revealed || g.cells[y][x].flags != 0 {
         return GameContinue, nil
     }
-    g[y][x].revealed = true
-    if g[y][x].mines != 0 {
+    g.cells[y][x].revealed = true
+    if g.cells[y][x].mines != 0 {
         return GameLost, nil
     }
-    spacesLeft -= 1
-    if spacesLeft == 0 {
+    g.spacesLeft -= 1
+    if g.spacesLeft == 0 {
         return GameWon, nil
     }
-    if g[y][x].sorroundingMines == 0 {
+    if g.cells[y][x].sorroundingMines == 0 {
         neighbors, _ := g.GetNeighbors(x, y)
         for _, p := range neighbors {
             g.Reveal(p.X, p.Y)

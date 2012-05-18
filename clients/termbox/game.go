@@ -8,7 +8,7 @@ import (
     "image"
 )
 
-var grid minegrid.MineGrid
+var grid *minegrid.MineGrid
 var gridChanged bool
 var cursorPos image.Point
 
@@ -19,7 +19,6 @@ func Play() {
     }
     defer termbox.Close()
 
-    //TODO initialize things
     grid, _ = minegrid.MakeMineGrid(9, 9, 10)
     gridChanged = true
 
@@ -37,16 +36,14 @@ func updateGame() bool {
             return true
         }
         if event.Key == termbox.KeySpace {
-            state, _ := grid.Reveal(cursorPos.X, cursorPos.Y)
-            //drawString(fmt.Sprint(minegrid.SpacesLeft), len(grid[0]) + 3, 0)
-            //termbox.Flush()
-            if state != 0 {
+            gameState, _ := grid.Reveal(cursorPos.X, cursorPos.Y)
+            if gameState != minegrid.GameContinue {
                 drawGrid()
                 termbox.HideCursor()
-                if state == minegrid.GameWon {
-                    drawString("You won! Press any key to exit.", 0, len(grid) + 3)
+                if gameState == minegrid.GameWon {
+                    drawString("You won! Press any key to exit.", 0, grid.Y() + 3)
                 } else {
-                    drawString("You lost... Press any key to exit.", 0, len(grid) + 3)
+                    drawString("You lost... Press any key to exit.", 0, grid.Y() + 3)
                 }
                 termbox.Flush()
                 termbox.PollEvent()
@@ -80,7 +77,7 @@ func moveUp() {
 }
 
 func moveDown() {
-    if cursorPos.Y < len(grid) - 1 {
+    if cursorPos.Y < grid.Y() - 1 {
         cursorPos.Y += 1
     }
     gridChanged = true
@@ -94,7 +91,7 @@ func moveLeft() {
 }
 
 func moveRight() {
-    if cursorPos.X < len(grid[0]) - 1 {
+    if cursorPos.X < grid.X() - 1 {
         cursorPos.X += 1
     }
     gridChanged = true
