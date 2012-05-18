@@ -15,3 +15,4 @@ Controls
 --------
 * Arrow keys to move
 * Spacebar to reveal a square
+* `q` to quit
