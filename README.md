@@ -4,8 +4,8 @@ A simple minesweeper clone for the console.
 
 Installation
 ------------
-    go get github.com/mystal/go-mines/minesweeper.go
-    go install github.com/mystal/go-mines/minesweeper.go
+    go get github.com/Mystal/go-mines
+    go install github.com/Mystal/go-mines
 
 To Play
 -------
