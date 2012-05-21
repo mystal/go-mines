@@ -24,7 +24,7 @@ func Play() {
 
     quit := false
     for !quit {
-        drawGrid()
+        display()
         quit = updateGame()
     }
 }
@@ -51,8 +51,8 @@ func updateGame() bool {
             }
             gridChanged = true
         } else if event.Ch == 'f' {
-            //TODO flag as a mine
-            //TODO update on-screen counter of mines unflagged
+            grid.ToggleFlag(cursorPos.X, cursorPos.Y)
+            gridChanged = true
         }
 
         switch event.Key {
@@ -73,38 +73,37 @@ func moveUp() {
     if cursorPos.Y > 0 {
         cursorPos.Y -= 1
     }
-    gridChanged = true
 }
 
 func moveDown() {
     if cursorPos.Y < grid.Y() - 1 {
         cursorPos.Y += 1
     }
-    gridChanged = true
 }
 
 func moveLeft() {
     if cursorPos.X > 0 {
         cursorPos.X -= 1
     }
-    gridChanged = true
 }
 
 func moveRight() {
     if cursorPos.X < grid.X() - 1 {
         cursorPos.X += 1
     }
-    gridChanged = true
+}
+
+func display() {
+    if gridChanged {
+        drawGrid()
+        gridChanged = false
+    }
+    termbox.SetCursor(cursorPos.X + 1, cursorPos.Y + 1)
+    termbox.Flush()
 }
 
 func drawGrid() {
-    if gridChanged {
-        drawCells(colorGrid(grid.String()), 0, 0)
-        termbox.SetCursor(cursorPos.X + 1, cursorPos.Y + 1)
-        termbox.Flush()
-        gridChanged = false
-    }
-    gridChanged = true
+    drawCells(colorGrid(grid.String()), 0, 0)
 }
 
 func colorGrid(gridStr string) []termbox.Cell {
@@ -113,6 +112,8 @@ func colorGrid(gridStr string) []termbox.Cell {
         switch c {
         case '-':
             cells[i] = termbox.Cell{' ', termbox.ColorWhite, termbox.ColorBlue}
+        case 'F':
+            cells[i] = termbox.Cell{c, termbox.ColorRed|termbox.AttrBold, termbox.ColorBlue}
         case '*':
             cells[i] = termbox.Cell{c, termbox.ColorWhite, termbox.ColorRed}
         case '1':
@@ -128,9 +129,9 @@ func colorGrid(gridStr string) []termbox.Cell {
         case '6':
             cells[i] = termbox.Cell{c, termbox.ColorCyan, termbox.ColorDefault}
         case '7':
-            cells[i] = termbox.Cell{c, termbox.ColorWhite, termbox.ColorBlue}
+            cells[i] = termbox.Cell{c, termbox.ColorWhite, termbox.ColorCyan}
         case '8':
-            cells[i] = termbox.Cell{c, termbox.ColorWhite, termbox.ColorGreen}
+            cells[i] = termbox.Cell{c, termbox.ColorWhite, termbox.ColorMagenta}
         default:
             cells[i] = termbox.Cell{c, termbox.ColorDefault, termbox.ColorDefault}
         }

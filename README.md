@@ -14,4 +14,5 @@ Controls
 --------
 * Arrow keys to move
 * Spacebar to reveal a square
+* `f` to flag a square as a mine
 * `q` to quit

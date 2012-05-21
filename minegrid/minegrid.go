@@ -18,6 +18,8 @@ type cell struct {
 type MineGrid struct {
     cells [][]cell
     x, y int
+    mines int
+    maxFlags uint8
     spacesLeft int
 }
 
@@ -62,7 +64,7 @@ func MakeMineGrid(x, y, mines int) (*MineGrid, error) {
             }
         }
     }
-    g := MineGrid{cells, x, y, x*y - mines}
+    g := MineGrid{cells, x, y, mines, 1, x*y - mines}
     //Count sorrounding mines and store
     for j := 0; j < y; j++ {
         for i := 0; i < x; i++ {
@@ -94,7 +96,9 @@ func (g MineGrid) String() (str string) {
     for j := 0; j < g.y; j++ {
         str += "|"
         for i := 0; i < g.y; i++ {
-            if !g.cells[j][i].revealed {
+            if g.cells[j][i].flags != 0 {
+                str += "F"
+            } else if !g.cells[j][i].revealed {
                 str += "-"
             } else if g.cells[j][i].mines != 0 {
                 str += "*"
@@ -165,6 +169,19 @@ func (g MineGrid) countSorroundingMines(x, y int) (uint8, error) {
         count += g.cells[points[i].Y][points[i].X].mines
     }
     return count, nil
+}
+
+func (g *MineGrid) ToggleFlag(x, y int) error {
+    if err := g.checkPoint(x, y); err != nil {
+        return err
+    }
+
+    if g.cells[y][x].flags == g.maxFlags {
+        g.cells[y][x].flags = 0
+    } else {
+        g.cells[y][x].flags += 1
+    }
+    return nil
 }
 
 func (g *MineGrid) Reveal(x, y int) (GameState, error) {
