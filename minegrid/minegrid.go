@@ -20,6 +20,7 @@ type MineGrid struct {
     x, y int
     mines int
     maxFlags uint8
+    minesFlagged int
     spacesLeft int
 }
 
@@ -64,7 +65,7 @@ func MakeMineGrid(x, y, mines int) (*MineGrid, error) {
             }
         }
     }
-    g := MineGrid{cells, x, y, mines, 1, x*y - mines}
+    g := MineGrid{cells, x, y, mines, 1, 0, x*y - mines}
     //Count sorrounding mines and store
     for j := 0; j < y; j++ {
         for i := 0; i < x; i++ {
@@ -81,6 +82,10 @@ func (g MineGrid) X() int {
 
 func (g MineGrid) Y() int {
     return g.y
+}
+
+func (g MineGrid) MinesLeft() int {
+    return g.mines - g.minesFlagged
 }
 
 func (g MineGrid) String() (str string) {
@@ -177,9 +182,11 @@ func (g *MineGrid) ToggleFlag(x, y int) error {
     }
 
     if g.cells[y][x].flags == g.maxFlags {
+        g.minesFlagged -= int(g.maxFlags)
         g.cells[y][x].flags = 0
     } else {
         g.cells[y][x].flags += 1
+        g.minesFlagged += 1
     }
     return nil
 }
