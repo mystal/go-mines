@@ -4,13 +4,24 @@ import (
     "github.com/nsf/termbox-go"
     "github.com/Mystal/go-mines/minegrid"
 
-    //"fmt"
+    "fmt"
     "image"
 )
 
-var grid *minegrid.MineGrid
-var gridChanged bool
-var cursorPos image.Point
+type Difficulty int
+
+const (
+    DiffEasy Difficulty = iota
+    DiffMedium
+    DiffHard
+)
+
+var (
+    grid *minegrid.MineGrid
+    gridPosition image.Point
+    cursorPos image.Point
+    gridChanged bool
+)
 
 func Play() {
     err := termbox.Init()
@@ -19,8 +30,8 @@ func Play() {
     }
     defer termbox.Close()
 
-    grid, _ = minegrid.MakeMineGrid(9, 9, 10)
-    gridChanged = true
+    gridPosition = image.Point{20, 0}
+    initGame(DiffEasy)
 
     quit := false
     for !quit {
@@ -35,15 +46,17 @@ func updateGame() bool {
         if event.Ch == 'q' {
             return true
         }
-        if event.Key == termbox.KeySpace {
+        if event.Ch == 'n' {
+            initGame(DiffEasy)
+        } else if event.Key == termbox.KeySpace {
             gameState, _ := grid.Reveal(cursorPos.X, cursorPos.Y)
             if gameState != minegrid.GameContinue {
                 drawGrid()
                 termbox.HideCursor()
                 if gameState == minegrid.GameWon {
-                    drawString("You won! Press any key to exit.", 0, grid.Y() + 3)
+                    drawMessage("You won! Press any key to exit.")
                 } else {
-                    drawString("You lost... Press any key to exit.", 0, grid.Y() + 3)
+                    drawMessage("You lost... Press any key to exit.")
                 }
                 termbox.Flush()
                 termbox.PollEvent()
@@ -67,6 +80,21 @@ func updateGame() bool {
         }
     }
     return false
+}
+
+func initGame(diff Difficulty) {
+    if diff == DiffEasy {
+        grid, _ = minegrid.MakeMineGrid(9, 9, 10)
+    } else if diff == DiffMedium {
+        grid, _ = minegrid.MakeMineGrid(16, 16, 40)
+    } else if diff == DiffHard {
+        grid, _ = minegrid.MakeMineGrid(40, 16, 99)
+    }
+    gridChanged = true
+
+    cursorPos = image.Point{0, 0}
+
+    termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
 }
 
 func moveUp() {
@@ -94,16 +122,35 @@ func moveRight() {
 }
 
 func display() {
+    drawStatus()
     if gridChanged {
         drawGrid()
         gridChanged = false
     }
-    termbox.SetCursor(cursorPos.X + 1, cursorPos.Y + 1)
+    termbox.SetCursor(cursorPos.X + gridPosition.X + 1, cursorPos.Y + gridPosition.Y + 1)
     termbox.Flush()
 }
 
 func drawGrid() {
-    drawCells(colorGrid(grid.String()), 0, 0)
+    drawCells(colorGrid(grid.String()), gridPosition.X, gridPosition.Y)
+}
+
+func drawStatus() {
+    drawString("Minesweeper", 0, 0) //TODO bold
+    drawString(fmt.Sprintf("Mines: %02d", grid.MinesLeft()), 0, 3)
+    drawActions()
+}
+
+func drawActions() {
+    drawString("Actions", 0, 5) //TODO bold
+    drawString("Space: reveal", 0, 6)
+    drawString("f: toggle flag", 0, 7)
+    drawString("n: new game", 0, 9)
+    drawString("q: quit", 0, 10)
+}
+
+func drawMessage(str string) {
+    drawString(str, 0, grid.Y() + 3)
 }
 
 func colorGrid(gridStr string) []termbox.Cell {
