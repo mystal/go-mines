@@ -8,7 +8,12 @@ import (
     "image"
 )
 
-type Difficulty int
+type (
+    Difficulty int
+    gameState int
+    actionFunc func() gameState
+    actionLookup map[termbox.Event] actionFunc
+)
 
 const (
     DiffEasy Difficulty = iota
@@ -16,9 +21,72 @@ const (
     DiffHard
 )
 
+const (
+    statePlay gameState = iota
+    stateLose
+    stateWin
+    stateNew
+    stateQuit
+)
+
+var actionStrings = [...][]string{
+    //statePlay
+    []string{
+        "Space: reveal",
+        "f: flag",
+        "Arrow keys: move",
+        "",
+        "n: new game",
+        "q: quit"},
+    //stateLose
+    []string{
+        "n: new game",
+        "q: quit"},
+    //stateWin
+    []string{
+        "n: new game",
+        "q: quit"},
+    //stateNew
+    []string{
+        "e: easy",
+        "m: medium",
+        "h: hard",
+        "",
+        "c: cancel",
+        "q: quit"}}
+
+var actionFuncs = [...]actionLookup{
+    //statePlay
+    actionLookup{
+        termbox.Event{Type:termbox.EventKey, Key:termbox.KeySpace}:revealSquare,
+        termbox.Event{Type:termbox.EventKey, Ch:'f'}:flagSquare,
+        termbox.Event{Type:termbox.EventKey, Key:termbox.KeyArrowUp}:moveUp,
+        termbox.Event{Type:termbox.EventKey, Key:termbox.KeyArrowDown}:moveDown,
+        termbox.Event{Type:termbox.EventKey, Key:termbox.KeyArrowLeft}:moveLeft,
+        termbox.Event{Type:termbox.EventKey, Key:termbox.KeyArrowRight}:moveRight,
+        termbox.Event{Type:termbox.EventKey, Ch:'n'}:newGame,
+        termbox.Event{Type:termbox.EventKey, Ch:'q'}:quitGame},
+    //stateLose
+    actionLookup{
+        termbox.Event{Type:termbox.EventKey, Ch:'n'}:newGame,
+        termbox.Event{Type:termbox.EventKey, Ch:'q'}:quitGame},
+    //stateWin
+    actionLookup{
+        termbox.Event{Type:termbox.EventKey, Ch:'n'}:newGame,
+        termbox.Event{Type:termbox.EventKey, Ch:'q'}:quitGame},
+    //stateNew
+    actionLookup{
+        termbox.Event{Type:termbox.EventKey, Ch:'e'}:newEasyGame,
+        termbox.Event{Type:termbox.EventKey, Ch:'m'}:newMediumGame,
+        termbox.Event{Type:termbox.EventKey, Ch:'h'}:newHardGame,
+        termbox.Event{Type:termbox.EventKey, Ch:'c'}:cancelNewGame,
+        termbox.Event{Type:termbox.EventKey, Ch:'q'}:quitGame}}
+
 var (
     grid *minegrid.MineGrid
     gridPosition image.Point
+    actionsPosition image.Point
+    minesPosition image.Point
     cursorPos image.Point
     gridChanged bool
 )
@@ -30,56 +98,74 @@ func Play() {
     }
     defer termbox.Close()
 
-    gridPosition = image.Point{20, 0}
+    gridPosition = image.Point{20, 1}
+    actionsPosition = image.Point{0, 2}
+
     initGame(DiffEasy)
 
-    quit := false
-    for !quit {
-        display()
-        quit = updateGame()
+    clear := true
+    for curState := statePlay; curState != stateQuit; {
+        display(curState, clear)
+        clear = false
+        action := actionFuncs[curState][termbox.PollEvent()]
+        if action != nil {
+            nextState := action()
+            clear = nextState != curState
+            curState = nextState
+        }
     }
 }
 
-func updateGame() bool {
-    event := termbox.PollEvent()
-    if event.Type == termbox.EventKey {
-        if event.Ch == 'q' {
-            return true
-        }
-        if event.Ch == 'n' {
-            initGame(DiffEasy)
-        } else if event.Key == termbox.KeySpace {
-            gameState, _ := grid.Reveal(cursorPos.X, cursorPos.Y)
-            if gameState != minegrid.GameContinue {
-                drawGrid()
-                termbox.HideCursor()
-                if gameState == minegrid.GameWon {
-                    drawMessage("You won! Press any key to exit.")
-                } else {
-                    drawMessage("You lost... Press any key to exit.")
-                }
-                termbox.Flush()
-                termbox.PollEvent()
-                return true
-            }
-            gridChanged = true
-        } else if event.Ch == 'f' {
-            grid.ToggleFlag(cursorPos.X, cursorPos.Y)
-            gridChanged = true
-        }
-
-        switch event.Key {
-        case termbox.KeyArrowUp:
-            moveUp()
-        case termbox.KeyArrowDown:
-            moveDown()
-        case termbox.KeyArrowLeft:
-            moveLeft()
-        case termbox.KeyArrowRight:
-            moveRight()
-        }
+func revealSquare() gameState {
+    gridChanged, _ = grid.Reveal(cursorPos.X, cursorPos.Y)
+    switch grid.State() {
+    case minegrid.GridLost:
+        return stateLose
+    case minegrid.GridWon:
+        return stateWin
     }
-    return false
+    return statePlay
+}
+
+func flagSquare() gameState {
+    gridChanged, _ = grid.ToggleFlag(cursorPos.X, cursorPos.Y)
+    return statePlay
+}
+
+func quitGame() gameState {
+    return stateQuit
+}
+
+func newGame() gameState {
+    return stateNew
+}
+
+func cancelNewGame() gameState {
+    switch grid.State() {
+    case minegrid.GridWon:
+        return stateWin
+    case minegrid.GridLost:
+        return stateLose
+    case minegrid.GridContinue:
+        return statePlay
+    }
+    //TODO an error technically
+    return stateQuit
+}
+
+func newEasyGame() gameState {
+    initGame(DiffEasy)
+    return statePlay
+}
+
+func newMediumGame() gameState {
+    initGame(DiffMedium)
+    return statePlay
+}
+
+func newHardGame() gameState {
+    initGame(DiffHard)
+    return statePlay
 }
 
 func initGame(diff Difficulty) {
@@ -90,63 +176,83 @@ func initGame(diff Difficulty) {
     } else if diff == DiffHard {
         grid, _ = minegrid.MakeMineGrid(40, 16, 99)
     }
-    gridChanged = true
 
+    minesPosition = image.Point{gridPosition.X + grid.X()/2, 0}
     cursorPos = image.Point{0, 0}
-
-    termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
 }
 
-func moveUp() {
+func moveUp() gameState {
     if cursorPos.Y > 0 {
         cursorPos.Y -= 1
     }
+    return statePlay
 }
 
-func moveDown() {
+func moveDown() gameState {
     if cursorPos.Y < grid.Y() - 1 {
         cursorPos.Y += 1
     }
+    return statePlay
 }
 
-func moveLeft() {
+func moveLeft() gameState {
     if cursorPos.X > 0 {
         cursorPos.X -= 1
     }
+    return statePlay
 }
 
-func moveRight() {
+func moveRight() gameState {
     if cursorPos.X < grid.X() - 1 {
         cursorPos.X += 1
     }
+    return statePlay
 }
 
-func display() {
-    drawStatus()
-    if gridChanged {
-        drawGrid()
+func display(curState gameState, clear bool) {
+    if clear {
+        termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
+    }
+
+    drawString("Minesweeper", 0, 0) //TODO bold
+    drawActions(curState)
+    if gridChanged || clear {
+        //TODO color and bold mines depending on how many left
+        drawString(fmt.Sprintf("%02d", grid.MinesLeft()), minesPosition.X, minesPosition.Y)
+        drawCells(colorGrid(grid.String()), gridPosition.X, gridPosition.Y)
         gridChanged = false
     }
-    termbox.SetCursor(cursorPos.X + gridPosition.X + 1, cursorPos.Y + gridPosition.Y + 1)
+    drawStatus(curState)
+
+    if curState == statePlay {
+        termbox.SetCursor(cursorPos.X + gridPosition.X + 1, cursorPos.Y + gridPosition.Y + 1)
+    } else {
+        termbox.HideCursor()
+    }
     termbox.Flush()
 }
 
-func drawGrid() {
-    drawCells(colorGrid(grid.String()), gridPosition.X, gridPosition.Y)
+func drawActions(curState gameState) {
+    curActionPos := actionsPosition.Y
+    for _, action := range actionStrings[curState] {
+        drawString(action, 0, curActionPos)
+        curActionPos += 1
+    }
 }
 
-func drawStatus() {
-    drawString("Minesweeper", 0, 0) //TODO bold
-    drawString(fmt.Sprintf("Mines: %02d", grid.MinesLeft()), 0, 3)
-    drawActions()
-}
-
-func drawActions() {
-    drawString("Actions", 0, 5) //TODO bold
-    drawString("Space: reveal", 0, 6)
-    drawString("f: toggle flag", 0, 7)
-    drawString("n: new game", 0, 9)
-    drawString("q: quit", 0, 10)
+func drawStatus(curState gameState) {
+    status := ""
+    switch curState {
+    case statePlay:
+        status = "Play!"
+    case stateLose:
+        status = "You lost..."
+    case stateWin:
+        status = "You won!"
+    case stateNew:
+        status = "Choose a difficulty"
+    }
+    drawString(status, 0, gridPosition.Y + grid.Y() + 3)
 }
 
 func drawMessage(str string) {

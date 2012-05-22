@@ -22,16 +22,17 @@ type MineGrid struct {
     maxFlags uint8
     minesFlagged int
     spacesLeft int
+    state GridState
 }
 
-type GameState uint
+type GridState uint
 
 type Error string
 
 const (
-    GameContinue GameState = iota
-    GameWon
-    GameLost
+    GridContinue GridState = iota
+    GridWon
+    GridLost
 )
 
 func (e Error) Error() string {
@@ -65,7 +66,7 @@ func MakeMineGrid(x, y, mines int) (*MineGrid, error) {
             }
         }
     }
-    g := MineGrid{cells, x, y, mines, 1, 0, x*y - mines}
+    g := MineGrid{cells, x, y, mines, 1, 0, x*y - mines, GridContinue}
     //Count sorrounding mines and store
     for j := 0; j < y; j++ {
         for i := 0; i < x; i++ {
@@ -84,6 +85,10 @@ func (g MineGrid) Y() int {
     return g.y
 }
 
+func (g MineGrid) State() GridState {
+    return g.state
+}
+
 func (g MineGrid) MinesLeft() int {
     return g.mines - g.minesFlagged
 }
@@ -93,14 +98,14 @@ func (g MineGrid) String() (str string) {
         return
     }
 
-    str += "/"
+    str += "#"
     for i := 0; i < g.x; i++ {
-        str += "\u00AF"
+        str += "#"
     }
-    str += "\\\n"
+    str += "#\n"
     for j := 0; j < g.y; j++ {
-        str += "|"
-        for i := 0; i < g.y; i++ {
+        str += "#"
+        for i := 0; i < g.x; i++ {
             if g.cells[j][i].flags != 0 {
                 str += "F"
             } else if !g.cells[j][i].revealed {
@@ -113,13 +118,13 @@ func (g MineGrid) String() (str string) {
                 str += " "
             }
         }
-        str += "|\n"
+        str += "#\n"
     }
-    str += "\\"
+    str += "#"
     for i := 0; i < g.x; i++ {
-        str += "_"
+        str += "#"
     }
-    str += "/\n"
+    str += "#\n"
     return
 }
 
@@ -176,9 +181,13 @@ func (g MineGrid) countSorroundingMines(x, y int) (uint8, error) {
     return count, nil
 }
 
-func (g *MineGrid) ToggleFlag(x, y int) error {
+func (g *MineGrid) ToggleFlag(x, y int) (bool, error) {
     if err := g.checkPoint(x, y); err != nil {
-        return err
+        return false, err
+    }
+
+    if g.cells[y][x].revealed {
+        return false, nil
     }
 
     if g.cells[y][x].flags == g.maxFlags {
@@ -188,24 +197,26 @@ func (g *MineGrid) ToggleFlag(x, y int) error {
         g.cells[y][x].flags += 1
         g.minesFlagged += 1
     }
-    return nil
+    return true, nil
 }
 
-func (g *MineGrid) Reveal(x, y int) (GameState, error) {
+func (g *MineGrid) Reveal(x, y int) (bool, error) {
     if err := g.checkPoint(x, y); err != nil {
-        return GameContinue, err
+        return false, err
     }
 
     if g.cells[y][x].revealed || g.cells[y][x].flags != 0 {
-        return GameContinue, nil
+        return false, nil
     }
     g.cells[y][x].revealed = true
     if g.cells[y][x].mines != 0 {
-        return GameLost, nil
+        g.state = GridLost
+        return true, nil
     }
     g.spacesLeft -= 1
     if g.spacesLeft == 0 {
-        return GameWon, nil
+        g.state = GridWon
+        return true, nil
     }
     if g.cells[y][x].sorroundingMines == 0 {
         neighbors, _ := g.GetNeighbors(x, y)
@@ -213,5 +224,5 @@ func (g *MineGrid) Reveal(x, y int) (GameState, error) {
             g.Reveal(p.X, p.Y)
         }
     }
-    return GameContinue, nil
+    return true, nil
 }
