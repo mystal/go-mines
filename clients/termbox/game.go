@@ -2,7 +2,7 @@ package game
 
 import (
     "github.com/nsf/termbox-go"
-    "github.com/Mystal/go-mines/minegrid"
+    "github.com/mystal/go-mines/minegrid"
 
     "fmt"
     "image"
