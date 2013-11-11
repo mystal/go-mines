@@ -214,11 +214,12 @@ func display(curState gameState, clear bool) {
         termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
     }
 
-    drawString("Minesweeper", 0, 0) //TODO bold
+    drawColorString("Minesweeper", 0, 0, termbox.AttrBold, termbox.ColorDefault)
     drawActions(curState)
     if gridChanged || clear {
-        //TODO color and bold mines depending on how many left
-        drawString(fmt.Sprintf("%02d", grid.MinesLeft()), minesPosition.X, minesPosition.Y)
+        drawColorString(fmt.Sprintf("%02d", grid.MinesLeft()),
+                        minesPosition.X, minesPosition.Y,
+                        termbox.ColorRed|termbox.AttrBold, termbox.ColorWhite)
         drawCells(colorGrid(grid.String()), gridPosition.X, gridPosition.Y)
         gridChanged = false
     }
@@ -306,6 +307,10 @@ func drawCells(cells []termbox.Cell, x, y int) {
 }
 
 func drawString(str string, x, y int) {
+    drawColorString(str, x, y, termbox.ColorDefault, termbox.ColorDefault)
+}
+
+func drawColorString(str string, x, y int, fg, bg termbox.Attribute) {
     i, j := x, y
     for _, c := range str {
         if c == '\n' {
@@ -313,7 +318,7 @@ func drawString(str string, x, y int) {
             j += 1
             continue
         }
-        termbox.SetCell(i, j, c, termbox.ColorDefault, termbox.ColorDefault)
+        termbox.SetCell(i, j, c, fg, bg)
         i += 1
     }
 }
