@@ -1,11 +1,11 @@
 package main
 
 import (
-	"github.com/mystal/go-mines/minegrid"
-	"github.com/nsf/termbox-go"
-
 	"fmt"
 	"image"
+
+	"github.com/mystal/go-mines/minegrid"
+	"github.com/nsf/termbox-go"
 )
 
 type (
