@@ -1,4 +1,4 @@
-package game
+package main
 
 import (
 	"github.com/mystal/go-mines/minegrid"
@@ -90,31 +90,6 @@ var (
 	cursorPos       image.Point
 	gridChanged     bool
 )
-
-func Play() {
-	err := termbox.Init()
-	if err != nil {
-		panic(err)
-	}
-	defer termbox.Close()
-
-	gridPosition = image.Point{20, 1}
-	actionsPosition = image.Point{0, 2}
-
-	initGame(DiffEasy)
-
-	clear := true
-	for curState := statePlay; curState != stateQuit; {
-		display(curState, clear)
-		clear = false
-		action := actionFuncs[curState][termbox.PollEvent()]
-		if action != nil {
-			nextState := action()
-			clear = nextState != curState
-			curState = nextState
-		}
-	}
-}
 
 func revealSquare() gameState {
 	gridChanged, _ = grid.Reveal(cursorPos.X, cursorPos.Y)
@@ -320,5 +295,30 @@ func drawColorString(str string, x, y int, fg, bg termbox.Attribute) {
 		}
 		termbox.SetCell(i, j, c, fg, bg)
 		i += 1
+	}
+}
+
+func main() {
+	err := termbox.Init()
+	if err != nil {
+		panic(err)
+	}
+	defer termbox.Close()
+
+	gridPosition = image.Point{20, 1}
+	actionsPosition = image.Point{0, 2}
+
+	initGame(DiffEasy)
+
+	clear := true
+	for curState := statePlay; curState != stateQuit; {
+		display(curState, clear)
+		clear = false
+		action := actionFuncs[curState][termbox.PollEvent()]
+		if action != nil {
+			nextState := action()
+			clear = nextState != curState
+			curState = nextState
+		}
 	}
 }
