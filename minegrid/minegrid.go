@@ -12,7 +12,7 @@ type cell struct {
 	mines            uint8
 	flags            uint8
 	revealed         bool
-	sorroundingMines uint8
+	surroundingMines uint8
 }
 
 type MineGrid struct {
@@ -67,10 +67,10 @@ func MakeMineGrid(x, y, mines int) (*MineGrid, error) {
 		}
 	}
 	g := MineGrid{cells, x, y, mines, 1, 0, x*y - mines, GridContinue}
-	//Count sorrounding mines and store
+	//Count surrounding mines and store
 	for j := 0; j < y; j++ {
 		for i := 0; i < x; i++ {
-			g.cells[j][i].sorroundingMines, _ = g.countSorroundingMines(i, j)
+			g.cells[j][i].surroundingMines, _ = g.countSurroundingMines(i, j)
 		}
 	}
 
@@ -112,8 +112,8 @@ func (g MineGrid) String() (str string) {
 				str += "-"
 			} else if g.cells[j][i].mines != 0 {
 				str += "*"
-			} else if g.cells[j][i].sorroundingMines != 0 {
-				str += fmt.Sprint(g.cells[j][i].sorroundingMines)
+			} else if g.cells[j][i].surroundingMines != 0 {
+				str += fmt.Sprint(g.cells[j][i].surroundingMines)
 			} else {
 				str += " "
 			}
@@ -168,7 +168,7 @@ func (g MineGrid) GetNeighbors(x, y int) ([]image.Point, error) {
 	return neighbors, nil
 }
 
-func (g MineGrid) countSorroundingMines(x, y int) (uint8, error) {
+func (g MineGrid) countSurroundingMines(x, y int) (uint8, error) {
 	if err := g.checkPoint(x, y); err != nil {
 		return 0, err
 	}
@@ -181,7 +181,7 @@ func (g MineGrid) countSorroundingMines(x, y int) (uint8, error) {
 	return count, nil
 }
 
-func (g MineGrid) countSorroundingFlags(x, y int) (uint8, error) {
+func (g MineGrid) countSurroundingFlags(x, y int) (uint8, error) {
 	if err := g.checkPoint(x, y); err != nil {
 		return 0, err
 	}
@@ -223,11 +223,11 @@ func (g *MineGrid) Reveal(x, y int) (bool, error) {
 	}
 
 	if g.cells[y][x].revealed {
-		if g.cells[y][x].sorroundingMines == 0 {
+		if g.cells[y][x].surroundingMines == 0 {
 			return false, nil
 		}
-		flags, _ := g.countSorroundingFlags(x, y)
-		if g.cells[y][x].sorroundingMines != flags {
+		flags, _ := g.countSurroundingFlags(x, y)
+		if g.cells[y][x].surroundingMines != flags {
 			return false, nil
 		}
 		neighbors, _ := g.GetNeighbors(x, y)
@@ -249,7 +249,7 @@ func (g *MineGrid) Reveal(x, y int) (bool, error) {
 		g.state = GridWon
 		return true, nil
 	}
-	if g.cells[y][x].sorroundingMines == 0 {
+	if g.cells[y][x].surroundingMines == 0 {
 		neighbors, _ := g.GetNeighbors(x, y)
 		for _, p := range neighbors {
 			g.Reveal(p.X, p.Y)
