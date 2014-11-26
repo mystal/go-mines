@@ -175,8 +175,21 @@ func (g MineGrid) countSorroundingMines(x, y int) (uint8, error) {
 
     points, _ := g.GetNeighbors(x, y)
     count := uint8(0)
-    for i := 0; i < len(points); i++ {
-        count += g.cells[points[i].Y][points[i].X].mines
+    for _, p := range points {
+        count += g.cells[p.Y][p.X].mines
+    }
+    return count, nil
+}
+
+func (g MineGrid) countSorroundingFlags(x, y int) (uint8, error) {
+    if err := g.checkPoint(x, y); err != nil {
+        return 0, err
+    }
+
+    points, _ := g.GetNeighbors(x, y)
+    count := uint8(0)
+    for _, p := range points {
+        count += g.cells[p.Y][p.X].flags
     }
     return count, nil
 }
@@ -205,9 +218,27 @@ func (g *MineGrid) Reveal(x, y int) (bool, error) {
         return false, err
     }
 
-    if g.cells[y][x].revealed || g.cells[y][x].flags != 0 {
+    if g.cells[y][x].flags != 0 {
         return false, nil
     }
+
+    if g.cells[y][x].revealed {
+        if g.cells[y][x].sorroundingMines == 0 {
+            return false, nil
+        }
+        flags, _ := g.countSorroundingFlags(x, y)
+        if g.cells[y][x].sorroundingMines != flags {
+            return false, nil
+        }
+        neighbors, _ := g.GetNeighbors(x, y)
+        for _, p := range neighbors {
+            if !g.cells[p.Y][p.X].revealed {
+                g.Reveal(p.X, p.Y)
+            }
+        }
+        return true, nil
+    }
+
     g.cells[y][x].revealed = true
     if g.cells[y][x].mines != 0 {
         g.state = GridLost
